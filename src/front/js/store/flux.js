@@ -1,3 +1,4 @@
+const apiUrl = process.env.BACKEND_URL + "/api";
 const getState = ({ getStore, getActions, setStore }) => {
 	return {
 		store: {
@@ -6,31 +7,32 @@ const getState = ({ getStore, getActions, setStore }) => {
 				{
 					title: "FIRST",
 					background: "white",
-					initial: "white"
+					initial: "white",
 				},
 				{
 					title: "SECOND",
 					background: "white",
-					initial: "white"
-				}
-			]
+					initial: "white",
+				},
+			],
+			token: null,
+			userinfo: null,
 		},
 		actions: {
 			// Use getActions to call a function within a fuction
 			exampleFunction: () => {
 				getActions().changeColor(0, "green");
 			},
-
 			getMessage: async () => {
-				try{
+				try {
 					// fetching data from the backend
-					const resp = await fetch(process.env.BACKEND_URL + "/api/hello")
-					const data = await resp.json()
-					setStore({ message: data.message })
+					const resp = await fetch(process.env.BACKEND_URL + "/api/hello");
+					const data = await resp.json();
+					setStore({ message: data.message });
 					// don't forget to return something, that is how the async resolves
 					return data;
-				}catch(error){
-					console.log("Error loading message from backend", error)
+				} catch (error) {
+					console.log("Error loading message from backend", error);
 				}
 			},
 			changeColor: (index, color) => {
@@ -43,11 +45,85 @@ const getState = ({ getStore, getActions, setStore }) => {
 					if (i === index) elm.background = color;
 					return elm;
 				});
-
-				//reset the global store
-				setStore({ demo: demo });
-			}
-		}
+				login: async (email, password) => {
+					let resp = await fetch(apiUrl + "/login", {
+						method: "POST",
+						body: JSON.stringify({ email, password }),
+					});
+					if (!resp.ok) {
+						setStore({ token: null });
+						return false;
+					}
+					//reset the global store
+					setStore({ demo: demo });
+				};
+			},
+			login: async (email, password) => {
+				let resp = await fetch(apiUrl + "/login", {
+					method: "POST",
+					body: JSON.stringify({ email, password }),
+					headers: {
+						"Content-Type": "application/json",
+					},
+				});
+				if (!resp.ok) {
+					setStore({ token: null });
+					return false;
+				}
+				let data = await resp.json();
+				setStore({ token: data.token });
+				localStorage.setItem("token", data.token);
+				return true;
+			},
+			loadSession: async () => {
+				let storageToken = localStorage.getItem("token");
+				if (!storageToken) return;
+				setStore({ token: storageToken });
+				let resp = await fetch(apiUrl + "/userinfo", {
+					headers: {
+						Authorization: "Bearer " + storageToken,
+					},
+				});
+				if (!resp.ok) {
+					setStore({ token: null });
+					localStorage.removeItem("token")
+					return false;
+				}
+				let data = await resp.json();
+				setStore({ userInfo: data });
+				return true;
+			},
+			logout: async () => {
+				let { token } = getStore();
+				let resp = await fetch(apiUrl + "/logout", {
+					method: "POST",
+					headers: {
+						"Authorization": "Bearer " + token
+					},
+				});
+				if (!resp.ok) return false;
+				setStore({ token: null, userInfo: null });
+				localStorage.removeItem("token");
+				return true;
+			},
+			// signup: async (email, password, name, lastName, address, city, state) => {
+			// 	let resp = await fetch(apiUrl + "/signup", {
+			// 		method: "POST",
+			// 		body: JSON.stringify({ email, password, name, lastName, address, city, state }),
+			// 		headers: {
+			// 			"Content-Type": "application/json",
+			// 		},
+			// 	});
+			// 	if (!resp.ok) {
+			// 		setStore({ token: null });
+			// 		return false;
+			// 	}
+			// 	let data = await resp.json();
+			// 	setStore({ token: data.token });
+			// 	localStorage.setItem("token", data.token);
+			// 	return true;
+			// },
+		},
 	};
 };
 
